@@ -8,6 +8,9 @@ import { createCostPlugin, MemoryCostMeter, costLevelOf, tierOfModel } from "./p
 import { createRepairPipeline, flattenArguments, truncateContent } from "./plugins/repair";
 import { Coordinator, finalText, textBlock } from "./plugins/coordinator";
 import { defaultModelSelection, normalizeBaseUrl, resolveDeepSeekAdapterConfig, DEEPSEEK_MODELS } from "./llm/deepseek";
+import { resolveProfileConfig, renderCordisPatch, parseReasonixToml } from "./config/reasonix-config";
+import { cacheHitRate, taskCostUsd, evaluate, thresholdViolations } from "./benchmark/benchmark";
+import { createSimulatedEngine, E2E_TASKS, simulateTurns } from "./benchmark/engine";
 
 let passed = 0;
 let failed = 0;
@@ -200,6 +203,76 @@ test("Coordinator.planAndExecute 走 planner/executor 子 Agent", async () => {
   assert.ok(result.planText.includes("Goal: g"));
   assert.strictEqual(result.resultText, "done");
   assert.strictEqual(result.stopReason, "completed");
+});
+
+console.log("== 配置兼容（reasonix.toml -> profile） ==");
+test("resolveProfileConfig 映射 default_model=pro 与权限", () => {
+  const profile = resolveProfileConfig({ default_model: "pro", permission_rules: "never" });
+  assert.strictEqual(profile.agentDefaultModel.model, "deepseek-v4-pro");
+  assert.strictEqual(profile.approvalPolicy, "never");
+  assert.strictEqual(profile.coordinator.plannerModel, "deepseek-v4-pro");
+  assert.strictEqual(profile.coordinator.executorModel, "deepseek-v4-pro");
+});
+
+test("resolveProfileConfig 保留 baseURL 并补全 /v1", () => {
+  const profile = resolveProfileConfig({ base_url: "https://relay.example.com" });
+  assert.strictEqual(profile.llmDeepseek.baseURL, "https://relay.example.com/v1");
+});
+
+test("renderCordisPatch 生成 agent-default-model / llm-deepseek / mcp 行", () => {
+  const profile = resolveProfileConfig({
+    default_model: "flash",
+    mcp_servers: [{ name: "filesystem", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem"] }],
+  });
+  const patch = renderCordisPatch(profile);
+  assert.ok(patch.includes("id: agent-default-model"));
+  assert.ok(patch.includes("provider: deepseek-official"));
+  assert.ok(patch.includes("id: llm-deepseek"));
+  assert.ok(patch.includes("id: mcp-filesystem"));
+  assert.ok(patch.includes("command: npx"));
+});
+
+test("parseReasonixToml 解析平铺键 + array-of-tables", () => {
+  const toml = `
+# reasonix.toml
+default_model = "pro"
+max_tool_output_bytes = 128000
+permission_rules = "ask"
+
+[[mcp_servers]]
+name = "filesystem"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem"]
+`;
+  const cfg = parseReasonixToml(toml);
+  assert.strictEqual(cfg.default_model, "pro");
+  assert.strictEqual(cfg.max_tool_output_bytes, 128000);
+  assert.strictEqual(cfg.mcp_servers?.[0].name, "filesystem");
+  assert.deepStrictEqual(cfg.mcp_servers?.[0].args, ["-y", "@modelcontextprotocol/server-filesystem"]);
+});
+
+console.log("== 基准验证 ==");
+test("cacheHitRate 只统计含缓存命中的稳态 turn", () => {
+  const turns = simulateTurns({ prefixTokens: 20_000, perTurnInputTokens: 1_000, outputTokens: 1_000, turns: 4, cacheEnabled: true });
+  const rate = cacheHitRate(turns);
+  assert.ok(rate >= 0.9, `命中率 ${rate} 应 ≥0.9`);
+});
+
+test("taskCostUsd 缓存折扣降低计费", () => {
+  const cached = simulateTurns({ prefixTokens: 20_000, perTurnInputTokens: 1_000, outputTokens: 1_000, turns: 4, cacheEnabled: true });
+  const uncached = simulateTurns({ prefixTokens: 20_000, perTurnInputTokens: 1_000, outputTokens: 1_000, turns: 4, cacheEnabled: false });
+  assert.ok(taskCostUsd(cached, "flash") < taskCostUsd(uncached, "flash"));
+});
+
+test("evaluate 默认引擎达标（缓存≥90%、成本≤1.1×、成功率不回退）", async () => {
+  const report = await evaluate(createSimulatedEngine({ prefixTokens: 20_000, perTurnInputTokens: 1_000, outputTokens: 1_000, turns: 4, cacheEnabled: true }), E2E_TASKS);
+  assert.deepStrictEqual(thresholdViolations(report), []);
+});
+
+test("evaluate 无缓存引擎命中率违规", async () => {
+  const report = await evaluate(createSimulatedEngine({ prefixTokens: 20_000, perTurnInputTokens: 1_000, outputTokens: 1_000, turns: 4, cacheEnabled: false }), E2E_TASKS);
+  const violations = thresholdViolations(report);
+  assert.ok(violations.some((v) => v.includes("缓存命中率")));
 });
 
 console.log(`\n结果: ${passed} 通过, ${failed} 失败`);

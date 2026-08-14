@@ -1,6 +1,6 @@
 # 架构说明
 
-对应技术方案书第 3–5、12–13 章。本仓库当前完成 **M1（桥接层）+ M2（引擎层骨架对齐真实 dsh 接缝）+ M3（修复管线 + Coordinator 接入真实接缝）**。
+对应技术方案书第 3–5、12–13 章。本仓库当前完成 **M1（桥接层）+ M2（引擎层骨架对齐真实 dsh 接缝）+ M3（修复管线 + Coordinator）+ M4（配置兼容 + 基准验证）**。
 
 ## 三层结构
 
@@ -21,6 +21,8 @@
   - `src/plugins/cost.ts`：分级成本插件（`llm/stream` 瀑布 usage 计量）。
   - `src/plugins/repair.ts`：修复管线（`tools/pre-execute`/`execute`/`post-execute`/`result` 接缝：scavenge/flatten/truncation/storm）。
   - `src/plugins/coordinator.ts`：双模型 Coordinator（`ctx.subagents` 子 Agent：planner/executor）。
+  - `src/config/reasonix-config.ts`：reasonix.toml → dsh profile 映射 + `cordis.patch.yml` 渲染（M4）。
+  - `src/benchmark/`：基准验证（缓存命中率/成本比/成功率 + 阈值判定，M4）。
   - `src/ports.ts`：防腐层稳定抽象（CachePolicy/Repair/Cost/AgentLoop）。
 
 ## 真实 dsh 接缝（M2 调研结论）

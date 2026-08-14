@@ -41,7 +41,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "check": "node dist/check.js"
+    "check": "node dist/check.js",
+    "bench": "node dist/benchmark/cli.js"
   },
   "engines": {
     "node": ">=16"

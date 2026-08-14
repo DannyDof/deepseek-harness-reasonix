@@ -22,6 +22,10 @@ export { createRepairPipeline, flattenArguments, truncateContent, TRUNCATE_MARKE
 export type { RepairConfig, RepairPipeline, ScavengedFailure } from "./plugins/repair";
 export { Coordinator, createCoordinator, textBlock, finalText, DEFAULT_PLAN_SCHEMA, DEFAULT_COORDINATOR_CONFIG } from "./plugins/coordinator";
 export type { CoordinatorConfig, CoordinatorResult, CoordinatorPlan } from "./plugins/coordinator";
+export * from "./config/reasonix-config";
+export { evaluate, thresholdViolations, cacheHitRate, taskCostUsd, DEFAULT_BENCH_THRESHOLDS } from "./benchmark/benchmark";
+export type { Engine, TaskOutcome, TurnUsage, Baseline, BenchmarkReport, BenchThresholds } from "./benchmark/benchmark";
+export { createSimulatedEngine, simulateTurns, E2E_TASKS, DEFAULT_ENGINE_OPTIONS } from "./benchmark/engine";
 
 /** Reasonix bundle 组合配置 */
 export interface ReasonixBundleConfig {
