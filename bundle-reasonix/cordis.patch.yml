@@ -46,3 +46,27 @@
       config:
         greenSessionUsd: 0.05
         amberSessionUsd: 0.12
+
+    # Reasonix 工具调用修复管线：scavenge/flatten/truncation/storm（tools/* 接缝）。
+    - id: reasonix-repair
+      name: '@reasonix/dsh-bundle-reasonix/repair'
+      inject: [tools]
+      config:
+        flatten:
+          maxAttempts: 1
+        truncation:
+          enabled: false
+        storm:
+          window: 8
+          maxRepeats: 2
+
+    # Reasonix 双模型 Coordinator：planner/executor 子 Agent（ctx.subagents 接缝）。
+    - id: reasonix-coordinator
+      name: '@reasonix/dsh-bundle-reasonix/coordinator'
+      inject: [subagents, agents]
+      config:
+        provider: spawn
+        plannerModel: deepseek-v4-pro
+        executorModel: deepseek-v4-flash
+        reasoningEffort: high
+        maxDepth: 1

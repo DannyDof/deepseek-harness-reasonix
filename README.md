@@ -2,7 +2,7 @@
 
 用 DeepSeek Harness（dsh）的 Cordis 插件运行时替换 DeepSeek-Reasonix 后端 Agent 的落地实现仓库。
 
-本仓库按《用 DeepSeek Harness 替换 DeepSeek-Reasonix 后端 Agent 技术方案书》推进，当前处于 **M2（引擎层骨架对齐真实 dsh 接缝）**。
+本仓库按《用 DeepSeek Harness 替换 DeepSeek-Reasonix 后端 Agent 技术方案书》推进，当前处于 **M3（修复管线 + Coordinator 接入真实接缝）**。
 
 ## 目标架构
 
@@ -27,7 +27,7 @@
 | 目录 | 层 | 说明 |
 |---|---|---|
 | `bridge/` | 桥接层 | Reasonix/dsh 事件模型、双向映射、ACP/JSON-RPC 协议骨架、Sidecar 进程编排 |
-| `bundle-reasonix/` | 引擎层 | dsh profile bundle：`cordis.patch.yml` 清单 + 缓存优先/成本插件 + DeepSeek 适配器配置映射 |
+| `bundle-reasonix/` | 引擎层 | dsh profile bundle：`cordis.patch.yml` 清单 + 缓存优先/成本/修复管线/Coordinator 插件 + DeepSeek 适配器配置映射 |
 | `docs/` | — | 架构说明与方案摘要 |
 
 ## 快速开始
@@ -47,7 +47,7 @@ npm run check        # 运行事件映射自检
 
 - [x] M1 桥接层 + 事件映射原型（Sidecar）
 - [x] M2 dsh-bundle-reasonix：缓存优先 + DeepSeek 适配器（对齐真实接缝）
-- [ ] M3 修复管线 + 成本管控 + Coordinator
+- [x] M3 修复管线 + Coordinator（接入 `tools/*` / `ctx.subagents`）
 - [ ] M4 配置兼容 + 基准验证达标
 - [ ] M5 默认切换 + 回滚通道冻结
 

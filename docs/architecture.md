@@ -1,6 +1,6 @@
 # 架构说明
 
-对应技术方案书第 3–5、12–13 章。本仓库当前完成 **M1（桥接层）+ M2（引擎层骨架对齐真实 dsh 接缝）**。
+对应技术方案书第 3–5、12–13 章。本仓库当前完成 **M1（桥接层）+ M2（引擎层骨架对齐真实 dsh 接缝）+ M3（修复管线 + Coordinator 接入真实接缝）**。
 
 ## 三层结构
 
@@ -19,6 +19,8 @@
   - `src/llm/deepseek.ts`：reasonix.toml → 官方 `llm-deepseek` 适配器 Config 映射。
   - `src/plugins/cache-first.ts`：缓存优先插件（`systemPrompt.section` + `system-prompt/assemble` 瀑布）。
   - `src/plugins/cost.ts`：分级成本插件（`llm/stream` 瀑布 usage 计量）。
+  - `src/plugins/repair.ts`：修复管线（`tools/pre-execute`/`execute`/`post-execute`/`result` 接缝：scavenge/flatten/truncation/storm）。
+  - `src/plugins/coordinator.ts`：双模型 Coordinator（`ctx.subagents` 子 Agent：planner/executor）。
   - `src/ports.ts`：防腐层稳定抽象（CachePolicy/Repair/Cost/AgentLoop）。
 
 ## 真实 dsh 接缝（M2 调研结论）
@@ -29,6 +31,8 @@
 | 官方 DeepSeek 适配器 | `packages/llm/llm-deepseek` | `src/llm/deepseek.ts`（provider `deepseek-official`，模型 `deepseek-v4-flash/pro`） |
 | `SystemPrompt.section()` + `system-prompt/assemble` | `packages/core/system-prompt` | `src/plugins/cache-first.ts` |
 | `llm/stream` 瀑布（usage 分片） | `packages/llm/llm` | `src/plugins/cost.ts` |
+| `tools/pre-execute` `tools/execute` `tools/post-execute` `tools/result` | `packages/core/tools` | `src/plugins/repair.ts` |
+| `ctx.subagents` + `installModelSelection` | `packages/subagent` / `packages/core/agent` | `src/plugins/coordinator.ts` |
 | `agent/*` 主题事件 | `packages/core/agent` | `bridge/events/dsh.ts` |
 | `session/event` 广播 | `packages/core/session` | `bridge/events/dsh.ts` |
 | bundle 清单 | `dsh.bundle.patch`（package.json） | `bundle-reasonix/cordis.patch.yml` |

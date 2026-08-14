@@ -5,6 +5,8 @@
 import * as assert from "assert";
 import { prefixFingerprint, createCacheFirstPlugin } from "./plugins/cache-first";
 import { createCostPlugin, MemoryCostMeter, costLevelOf, tierOfModel } from "./plugins/cost";
+import { createRepairPipeline, flattenArguments, truncateContent } from "./plugins/repair";
+import { Coordinator, finalText, textBlock } from "./plugins/coordinator";
 import { defaultModelSelection, normalizeBaseUrl, resolveDeepSeekAdapterConfig, DEEPSEEK_MODELS } from "./llm/deepseek";
 
 let passed = 0;
@@ -130,6 +132,74 @@ test("createCacheFirstPlugin.register 挂载 section 与 assemble 瀑布", () =>
   assert.ok(sectionRegistered, "应注册 reasonix:cache-prefix 段");
   assert.ok(assembleHooked, "应监听 system-prompt/assemble 瀑布");
   dispose();
+});
+
+console.log("== 修复管线 ==");
+test("flattenArguments 解析字符串化 JSON / 解包单元素数组", () => {
+  assert.deepStrictEqual(flattenArguments('{"a":1}'), { changed: true, value: { a: 1 } });
+  assert.deepStrictEqual(flattenArguments([{ a: 1 }]), { changed: true, value: { a: 1 } });
+  assert.deepStrictEqual(flattenArguments("plain text"), { changed: false, value: "plain text" });
+  assert.deepStrictEqual(flattenArguments({ a: 1 }), { changed: false, value: { a: 1 } });
+});
+
+test("truncateContent 超预算时插入标记", () => {
+  const big = { type: "text" as const, text: "x".repeat(10_000) };
+  const out = truncateContent([big], { thresholdChars: 8192, headChars: 4096, tailChars: 1024, enabled: true });
+  const joined = out.filter((b) => b.type === "text").map((b) => b.text).join("");
+  assert.ok(joined.includes("[... tool result middle pruned ...]"));
+  assert.ok(Array.from(joined).length < 10_000);
+});
+
+test("createRepairPipeline storm 抑制重复调用", async () => {
+  const pipeline = createRepairPipeline({ storm: { window: 8, maxRepeats: 1 } });
+  const seen: string[] = [];
+  const host = {
+    on: (event: string, _handler: (...args: unknown[]) => unknown) => { seen.push(event); },
+  };
+  const dispose = pipeline.install(host as never);
+  assert.ok(seen.includes("tools/pre-execute"));
+  assert.ok(seen.includes("tools/execute"));
+  assert.ok(seen.includes("tools/post-execute"));
+  assert.ok(seen.includes("tools/result"));
+  dispose();
+});
+
+console.log("== Coordinator ==");
+test("finalText 聚合文本块", () => {
+  assert.strictEqual(finalText([textBlock("a"), textBlock("b"), { type: "reasoning", text: "x" }]), "ab");
+});
+
+test("Coordinator 模型选择 planner=pro executor=flash", () => {
+  const coordinator = new Coordinator({} as never, { plannerModel: "deepseek-v4-pro", executorModel: "deepseek-v4-flash" });
+  assert.strictEqual(coordinator.plannerSelection().model, "deepseek-v4-pro");
+  assert.strictEqual(coordinator.executorSelection().model, "deepseek-v4-flash");
+  assert.strictEqual(coordinator.plannerSelection().provider, "deepseek-official");
+});
+
+test("Coordinator.planAndExecute 走 planner/executor 子 Agent", async () => {
+  const calls: string[] = [];
+  const fakeSubagents = {
+    async start(name: string, req: { label: string; outputSchema?: unknown }) {
+      calls.push(name);
+      const isPlanner = req.label === "reasonix-planner";
+      return {
+        id: isPlanner ? "p" : "e",
+        result: Promise.resolve(
+          isPlanner
+            ? { output: [], structured: { goal: "g", steps: ["s1"] }, stopReason: "completed" as const }
+            : { output: [textBlock("done")], structured: undefined, stopReason: "completed" as const },
+        ),
+        dispose: async () => void 0,
+      };
+    },
+  };
+  const coordinator = new Coordinator({ subagents: fakeSubagents } as never, {});
+  const result = await coordinator.planAndExecute("task");
+  assert.strictEqual(calls[0], "spawn");
+  assert.strictEqual(calls[1], "spawn");
+  assert.ok(result.planText.includes("Goal: g"));
+  assert.strictEqual(result.resultText, "done");
+  assert.strictEqual(result.stopReason, "completed");
 });
 
 console.log(`\n结果: ${passed} 通过, ${failed} 失败`);

@@ -9,6 +9,8 @@
 import type { ContextLike } from "./dsh";
 import { createCacheFirstPlugin, CacheFirstOptions, CacheStateStore } from "./plugins/cache-first";
 import { createCostPlugin, CostTierThresholds } from "./plugins/cost";
+import { createRepairPipeline, RepairConfig } from "./plugins/repair";
+import { createCoordinator, CoordinatorConfig } from "./plugins/coordinator";
 
 export * from "./ports";
 export * from "./llm/deepseek";
@@ -16,12 +18,17 @@ export { createCacheFirstPlugin, prefixFingerprint, DEFAULT_CACHE_FIRST_OPTIONS 
 export type { CacheFirstOptions, CacheStateStore, CacheDriftHandler } from "./plugins/cache-first";
 export { createCostPlugin, MemoryCostMeter, SessionCostAccumulator, costLevelOf, tierOfModel, installCostMeter, DEFAULT_PRICING } from "./plugins/cost";
 export type { CostPlugin, CostTierThresholds, CostLevel, Pricing } from "./plugins/cost";
-export { createCoordinatorConfig, createCoordinatorPlugin } from "./plugins/coordinator";
+export { createRepairPipeline, flattenArguments, truncateContent, TRUNCATE_MARKER, DEFAULT_REPAIR_CONFIG } from "./plugins/repair";
+export type { RepairConfig, RepairPipeline, ScavengedFailure } from "./plugins/repair";
+export { Coordinator, createCoordinator, textBlock, finalText, DEFAULT_PLAN_SCHEMA, DEFAULT_COORDINATOR_CONFIG } from "./plugins/coordinator";
+export type { CoordinatorConfig, CoordinatorResult, CoordinatorPlan } from "./plugins/coordinator";
 
 /** Reasonix bundle 组合配置 */
 export interface ReasonixBundleConfig {
   cacheFirst?: CacheFirstOptions;
   cost?: CostTierThresholds;
+  repair?: RepairConfig;
+  coordinator?: CoordinatorConfig;
   /** 前缀状态存储（缺省用内存实现） */
   prefixStore?: CacheStateStore;
 }
@@ -39,7 +46,8 @@ export class MemoryPrefixStore implements CacheStateStore {
 
 /**
  * 在 dsh ctx 上安装 Reasonix bundle（M3 集成）。返回卸载函数。
- * 对应 cordis.patch.yml 中 reasonix-cache-first / reasonix-cost 两行插件的代码侧。
+ * 对应 cordis.patch.yml 中 reasonix-cache-first / reasonix-cost / reasonix-repair
+ * / reasonix-coordinator 各行插件的代码侧。
  */
 export function installBundle(ctx: ContextLike, config: ReasonixBundleConfig = {}): () => void {
   const disposers: Array<() => void> = [];
@@ -49,6 +57,13 @@ export function installBundle(ctx: ContextLike, config: ReasonixBundleConfig = {
 
   const cost = createCostPlugin(config.cost ?? { greenSessionUsd: 0.05, amberSessionUsd: 0.12 });
   disposers.push(cost.install(ctx));
+
+  const repair = createRepairPipeline(config.repair ?? {});
+  disposers.push(repair.install(ctx));
+
+  if (config.coordinator) {
+    createCoordinator(ctx, config.coordinator);
+  }
 
   return () => {
     for (const dispose of disposers) dispose();

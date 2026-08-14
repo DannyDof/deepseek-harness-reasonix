@@ -6,13 +6,16 @@
  * 任何字段/时序漂移都应在此登记。
  */
 
-/** Cordis 服务键：llm / sessions / systemPrompt / agentLoop / agents */
+/** Cordis 服务键：llm / sessions / systemPrompt / agentLoop / agents / tools / subagents */
 export interface ContextLike {
   llm: LlmRuntimeLike;
   sessions: SessionStoreLike;
   systemPrompt: SystemPromptLike;
   agentLoop: unknown;
   agents: unknown;
+  tools: ToolRuntimeLike;
+  subagents: SubagentRuntimeLike;
+  planMode?: unknown;
   compaction?: CompactionLike;
   on(event: string, handler: (...args: unknown[]) => unknown): void;
   plugin(plugin: unknown, config?: unknown): void;
@@ -163,4 +166,98 @@ export interface AgentPreStepPayload {
 // ===== 压缩接缝（base bundle 挂载 compaction-basic） =====
 export interface CompactionLike {
   request(sessionId: SessionId, reason: string): Promise<void>;
+}
+
+// ===== 工具接缝（修复管线） =====
+export interface ToolDefinitionLike {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface ToolExecutionInput {
+  callId: CallId;
+  rootCallId?: CallId;
+  name: string;
+  arguments: unknown;
+  agent?: unknown;
+  parent?: unknown;
+  signal: AbortSignal;
+}
+
+export interface ToolExecution extends ToolExecutionInput {
+  rootCallId: CallId;
+  token: unknown;
+}
+
+export interface ToolExecutionSuccess {
+  isError: false;
+  value: unknown;
+  content: ContentBlock[];
+  meta?: unknown;
+  additionalContexts?: unknown[];
+  concludesTurn?: true;
+}
+
+export interface ToolExecutionFailure {
+  isError: true;
+  error: { message: string; info?: { name: string; code: string } };
+  content: ContentBlock[];
+  meta?: unknown;
+  additionalContexts?: unknown[];
+}
+
+export type ToolExecutionResult = ToolExecutionSuccess | ToolExecutionFailure;
+
+export type PreToolDecision =
+  | { kind: "allow" }
+  | { kind: "deny"; reason: string }
+  | { kind: "ask"; reason?: string };
+
+export type PostToolDecision =
+  | { kind: "accept"; content?: ContentBlock[]; value?: never; additionalContexts?: unknown[] }
+  | { kind: "accept"; value: unknown; content?: never; additionalContexts?: unknown[] }
+  | { kind: "block"; feedback: ContentBlock[]; additionalContexts?: unknown[] };
+
+export interface ToolRuntimeLike {
+  register?(definition: ToolDefinitionLike): () => void;
+  execute(input: ToolExecutionInput): Promise<ToolExecutionResult>;
+  get(name: string): ToolDefinitionLike | undefined;
+}
+
+// ===== 子 Agent 接缝（Coordinator） =====
+export interface ModelSelection {
+  provider: string;
+  model: string;
+  reasoningEffort?: string;
+}
+
+export interface SubagentStartRequest {
+  label?: string;
+  prompt: ContentBlock[];
+  parent: unknown;
+  signal: AbortSignal;
+  agentOptions?: { provider?: string; model?: string };
+  outputSchema?: Record<string, unknown>;
+  maxDepth?: number;
+  persona?: string;
+  toolFilter?: unknown;
+}
+
+export interface SubagentResult {
+  output: ContentBlock[];
+  structured?: unknown;
+  stopReason: "completed" | "aborted" | "error" | "max-tokens" | "refusal";
+}
+
+export interface SubagentRun {
+  id: SessionId;
+  result: Promise<SubagentResult>;
+  dispose(): Promise<void>;
+}
+
+export interface SubagentRuntimeLike {
+  start(name: string, request: SubagentStartRequest): Promise<SubagentRun>;
+  startContinuable?(spec: unknown): Promise<unknown>;
+  followup?(parent: unknown, childId: SessionId, content: ContentBlock[], options?: unknown): Promise<unknown>;
 }

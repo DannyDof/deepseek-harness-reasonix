@@ -19,6 +19,14 @@
       "types": "./dist/plugins/cost.d.ts",
       "default": "./dist/plugins/cost.js"
     },
+    "./repair": {
+      "types": "./dist/plugins/repair.d.ts",
+      "default": "./dist/plugins/repair.js"
+    },
+    "./coordinator": {
+      "types": "./dist/plugins/coordinator.d.ts",
+      "default": "./dist/plugins/coordinator.js"
+    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
