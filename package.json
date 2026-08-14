@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "check": "node bridge/dist/check.js"
+    "check": "npm run check --workspace bridge && npm run check --workspace bundle-reasonix"
   },
   "engines": {
     "node": ">=16"

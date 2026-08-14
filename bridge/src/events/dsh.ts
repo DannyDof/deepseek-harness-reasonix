@@ -1,9 +1,13 @@
 /**
- * dsh 事件模型（session/event + agent/* + telemetry/* 侧）
+ * dsh 事件模型（引擎契约）
  *
- * 依据 DeepSeek Harness 的 SessionEvent 日志事实与 Cordis 类型化事件。
- * 桥接层以该模型为"引擎契约"（见 docs/architecture.md 第 12.2 节），
- * 任何引擎字段/广播时机变动都应先反映在这里并触发契约测试。
+ * 对齐 dsh master 真实事件词汇（session/event 广播 + agent/* 主题事件）：
+ * - session/event：turn/start、step/start、user/message、assistant/*、tool/*、request/*；
+ * - agent/*：agent/status、agent/session-start、agent/pre-step、agent/request、
+ *   agent/request-error、agent/turn-stopping、agent/error；
+ * - 审批：dsh-user-approval 落盘的 approval/asked；
+ * - 成本：由 llm/stream 瀑布的 usage 分片推导（llm/usage）。
+ * 任何引擎字段/广播时机变动都应先反映在这里并触发契约测试（docs/architecture.md 12.7）。
  */
 
 /** dsh 会话标识 */
@@ -11,35 +15,51 @@ export interface DshSessionId {
   sessionId: string;
 }
 
-/** 用户消息写入 SessionEvent 日志 */
-export interface DshUserMessage extends DshSessionId {
-  kind: "user/message";
-  role: "user";
-  content: string;
+/** 会话生命周期（dsh SessionStore 广播） */
+export interface DshSessionCreated extends DshSessionId {
+  kind: "session/created";
+  cwd?: string;
+  title?: string;
+}
+export interface DshSessionDisposed extends DshSessionId {
+  kind: "session/disposed";
 }
 
-/** 助手流式分片 */
+/** 回合生命周期 */
+export interface DshTurnStart extends DshSessionId {
+  kind: "turn/start";
+  seq: number;
+}
+export interface DshTurnEnd extends DshSessionId {
+  kind: "turn/end";
+  seq: number;
+  reason: "completed" | "aborted" | "blocked" | "error" | "max-tokens" | "interrupted";
+}
+
+/** 消息事件 */
+export interface DshUserMessage extends DshSessionId {
+  kind: "user/message";
+  seq: number;
+  content: string;
+  images?: string[];
+}
 export interface DshAssistantChunk extends DshSessionId {
   kind: "assistant/chunk";
   delta: string;
 }
-
-/** 助手完整消息 */
 export interface DshAssistantMessage extends DshSessionId {
   kind: "assistant/message";
   content: string;
   model?: string;
 }
 
-/** 工具调用 */
+/** 工具事件 */
 export interface DshToolCall extends DshSessionId {
   kind: "tool/call";
   callId: string;
   name: string;
   arguments: unknown;
 }
-
-/** 工具结果 */
 export interface DshToolResult extends DshSessionId {
   kind: "tool/result";
   callId: string;
@@ -47,72 +67,73 @@ export interface DshToolResult extends DshSessionId {
   output: string;
 }
 
-/** 会话开始 */
-export interface DshSessionStarted extends DshSessionId {
-  kind: "session/started";
-  title?: string;
+/** 审批事件（dsh-user-approval 会话事件投影） */
+export interface DshApprovalAsked extends DshSessionId {
+  kind: "approval/asked";
+  requestId: string;
+  kindOf: "tool" | "write" | "plan" | "memory";
+  summary: string;
+  payload?: unknown;
+}
+export interface DshApprovalResolved extends DshSessionId {
+  kind: "approval/resolved";
+  requestId: string;
+  approved: boolean;
 }
 
-/** 会话停止 */
-export interface DshSessionStopped extends DshSessionId {
-  kind: "session/stopped";
-}
-
-/** agent 状态（running / idle） */
+/** agent 主题事件 */
 export interface DshAgentStatus extends DshSessionId {
   kind: "agent/status";
   status: "running" | "idle";
 }
-
-/** agent 回合边界事件（step 前） */
+export interface DshAgentSessionStart extends DshSessionId {
+  kind: "agent/session-start";
+  source: "startup" | "resume" | "clear" | "compact";
+}
 export interface DshAgentPreStep extends DshSessionId {
   kind: "agent/pre-step";
-  stepIndex: number;
+  turn: number;
+  step: number;
 }
-
-/** agent turn 终止信号 */
 export interface DshAgentTurnStopping extends DshSessionId {
   kind: "agent/turn-stopping";
+  turn: number;
   reason: string;
 }
-
-/** agent 请求（审批等，宿主可见） */
-export interface DshAgentRequest extends DshSessionId {
-  kind: "agent/request";
-  requestId: string;
-  requestType: "approval" | "plan";
-  summary: string;
-  payload?: unknown;
+export interface DshAgentError extends DshSessionId {
+  kind: "agent/error";
+  turn: number;
+  step: number;
+  message: string;
 }
 
-/** agent 校验 */
-export interface DshAgentValidation extends DshSessionId {
-  kind: "agent/validation";
-  ok: boolean;
-  detail?: string;
-}
-
-/** 遥测成本事件 */
-export interface DshTelemetryCost extends DshSessionId {
-  kind: "telemetry/cost";
-  turnCostUsd: number;
-  sessionCostUsd: number;
-  tier: "flash" | "pro";
+/** 成本：由 llm/stream 瀑布 usage 分片推导（TokenUsage 语义） */
+export interface DshLlmUsage extends DshSessionId {
+  kind: "llm/usage";
+  provider: string;
+  model: string;
   inputTokens: number;
   outputTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  reasoningTokens?: number;
 }
 
 export type DshEvent =
+  | DshSessionCreated
+  | DshSessionDisposed
+  | DshTurnStart
+  | DshTurnEnd
   | DshUserMessage
   | DshAssistantChunk
   | DshAssistantMessage
   | DshToolCall
   | DshToolResult
-  | DshSessionStarted
-  | DshSessionStopped
+  | DshApprovalAsked
+  | DshApprovalResolved
   | DshAgentStatus
+  | DshAgentSessionStart
   | DshAgentPreStep
   | DshAgentTurnStopping
-  | DshAgentRequest
-  | DshAgentValidation
-  | DshTelemetryCost;
+  | DshAgentError
+  | DshLlmUsage;

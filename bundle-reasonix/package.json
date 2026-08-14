@@ -1,13 +1,39 @@
 {
-  "name": "dsh-bundle-reasonix",
+  "name": "@reasonix/dsh-bundle-reasonix",
   "version": "0.1.0",
   "private": true,
-  "description": "引擎层：Reasonix 独有能力（缓存优先/修复管线/成本/Coordinator）的 dsh 插件 bundle 骨架",
+  "description": "Reasonix 独有能力（缓存优先/成本/Coordinator）的 dsh profile bundle：dsh.bundle.patch 清单 + 组合插件",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cache-first": {
+      "types": "./dist/plugins/cache-first.d.ts",
+      "default": "./dist/plugins/cache-first.js"
+    },
+    "./cost": {
+      "types": "./dist/plugins/cost.d.ts",
+      "default": "./dist/plugins/cost.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "check": "node dist/check.js"
   },
   "engines": {
     "node": ">=16"

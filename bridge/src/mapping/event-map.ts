@@ -1,7 +1,4 @@
-import {
-  ReasonixEvent,
-  ReasonixCostUpdated,
-} from "../events/reasonix";
+import { ReasonixEvent, ReasonixCostUpdated } from "../events/reasonix";
 import { DshEvent } from "../events/dsh";
 
 /**
@@ -24,6 +21,17 @@ function costLevel(sessionCostUsd: number, t: CostThresholds): ReasonixCostUpdat
   return "red";
 }
 
+/** 简化计价（与 bundle-reasonix 定价保持同一数量级；精确表 M3 对齐） */
+const FLASH_INPUT_USD = 0.1;
+const FLASH_OUTPUT_USD = 0.4;
+const PRO_INPUT_USD = 2.0;
+const PRO_OUTPUT_USD = 8.0;
+const CACHE_READ_FACTOR = 0.1;
+
+function tierOf(model: string): "flash" | "pro" {
+  return /pro/i.test(model) ? "pro" : "flash";
+}
+
 /**
  * Reasonix 事件 -> dsh 事件（单向映射）。
  * 返回空数组表示该事件仅前端本地语义，无需上送引擎。
@@ -31,7 +39,7 @@ function costLevel(sessionCostUsd: number, t: CostThresholds): ReasonixCostUpdat
 export function mapReasonixToDsh(ev: ReasonixEvent): DshEvent[] {
   switch (ev.type) {
     case "user_message":
-      return [{ kind: "user/message", sessionId: ev.sessionId, role: "user", content: ev.content }];
+      return [{ kind: "user/message", sessionId: ev.sessionId, seq: 0, content: ev.content, images: ev.images }];
     case "assistant_chunk":
       return [{ kind: "assistant/chunk", sessionId: ev.sessionId, delta: ev.delta }];
     case "tool_call":
@@ -39,17 +47,11 @@ export function mapReasonixToDsh(ev: ReasonixEvent): DshEvent[] {
     case "tool_result":
       return [{ kind: "tool/result", sessionId: ev.sessionId, callId: ev.callId, ok: ev.ok, output: ev.output }];
     case "session_opened":
-      return [{ kind: "session/started", sessionId: ev.sessionId, title: ev.title }];
+      return [{ kind: "session/created", sessionId: ev.sessionId, title: ev.title }];
     case "session_closed":
-      return [{ kind: "session/stopped", sessionId: ev.sessionId }];
+      return [{ kind: "session/disposed", sessionId: ev.sessionId }];
     case "approval_result":
-      // 审批结果暂以 agent/validation 形式回传；如需精准请求回执，应扩展契约。
-      return [{
-        kind: "agent/validation",
-        sessionId: ev.sessionId,
-        ok: ev.approved,
-        detail: `approval:${ev.requestId}`,
-      }];
+      return [{ kind: "approval/resolved", sessionId: ev.sessionId, requestId: ev.requestId, approved: ev.approved }];
     // 以下为引擎下行语义，前端不应回传
     case "assistant_message":
     case "turn_started":
@@ -64,10 +66,18 @@ export function mapReasonixToDsh(ev: ReasonixEvent): DshEvent[] {
 
 /**
  * dsh 事件 -> Reasonix 事件（单向映射）。
- * 返回数组为前端可渲染的事件序列；null 表示该引擎事件对前端不可见。
+ * 返回数组为前端可渲染的事件序列；空数组表示该引擎事件对前端不可见。
  */
 export function mapDshToReasonix(ev: DshEvent, thresholds: CostThresholds = DEFAULT_COST_THRESHOLDS): ReasonixEvent[] {
   switch (ev.kind) {
+    case "session/created":
+      return [{ type: "session_opened", sessionId: ev.sessionId, title: ev.title }];
+    case "session/disposed":
+      return [{ type: "session_closed", sessionId: ev.sessionId }];
+    case "turn/start":
+      return [{ type: "turn_started", sessionId: ev.sessionId }];
+    case "turn/end":
+      return [{ type: "turn_done", sessionId: ev.sessionId }];
     case "user/message":
       return [{ type: "user_message", sessionId: ev.sessionId, content: ev.content }];
     case "assistant/chunk":
@@ -78,36 +88,39 @@ export function mapDshToReasonix(ev: DshEvent, thresholds: CostThresholds = DEFA
       return [{ type: "tool_call", sessionId: ev.sessionId, callId: ev.callId, name: ev.name, arguments: ev.arguments }];
     case "tool/result":
       return [{ type: "tool_result", sessionId: ev.sessionId, callId: ev.callId, ok: ev.ok, output: ev.output }];
-    case "session/started":
-      return [{ type: "session_opened", sessionId: ev.sessionId, title: ev.title }];
-    case "session/stopped":
-      return [{ type: "session_closed", sessionId: ev.sessionId }];
     case "agent/status":
       return [{ type: "status_changed", sessionId: ev.sessionId, status: ev.status }];
-    case "agent/request": {
-      const rxs: ReasonixEvent[] = [{
+    case "approval/asked":
+      return [{
         type: "approval_request",
         sessionId: ev.sessionId,
         requestId: ev.requestId,
-        kind: ev.requestType === "plan" ? "plan" : "tool",
+        kind: ev.kindOf,
         summary: ev.summary,
         payload: ev.payload,
       }];
-      return rxs;
-    }
-    case "telemetry/cost":
+    case "llm/usage": {
+      const tier = tierOf(ev.model);
+      const inputBilled = ev.inputTokens + (ev.cacheReadTokens ?? 0) * CACHE_READ_FACTOR;
+      const priceIn = tier === "flash" ? FLASH_INPUT_USD : PRO_INPUT_USD;
+      const priceOut = tier === "flash" ? FLASH_OUTPUT_USD : PRO_OUTPUT_USD;
+      const turnCostUsd = (inputBilled * priceIn + ev.outputTokens * priceOut) / 1_000_000;
+      const sessionCostUsd = turnCostUsd;
       return [{
         type: "cost_updated",
         sessionId: ev.sessionId,
-        turnCostUsd: ev.turnCostUsd,
-        sessionCostUsd: ev.sessionCostUsd,
-        tier: ev.tier,
-        level: costLevel(ev.sessionCostUsd, thresholds),
+        turnCostUsd,
+        sessionCostUsd,
+        tier,
+        level: costLevel(sessionCostUsd, thresholds),
       }];
+    }
     // 内部机制事件：对前端渲染不可见
+    case "agent/session-start":
     case "agent/pre-step":
     case "agent/turn-stopping":
-    case "agent/validation":
+    case "agent/error":
+    case "approval/resolved":
       return [];
   }
 }

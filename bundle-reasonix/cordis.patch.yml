@@ -1,0 +1,48 @@
+# reasonix profile patch：叠加在 dsh-base 之上的 Reasonix 专属层。
+#
+# 说明：
+# - 行级 `- id: <row>` 覆盖 dsh-base 同名行（整行替换 config，不做深合并）。
+# - `- insert:` 插入本 bundle 提供的插件行（name 为 npm 包名/子路径）。
+# - 对应 docs/architecture.md 第 12 章：差异收敛于此文件，升级时迁移 patch 而非重改 bundle。
+#
+# 使用：`dsh plugin --profile reasonix add @reasonix/dsh-bundle-reasonix`
+
+# 默认模型：DeepSeek 官方路由（dsh 官方 llm-deepseek 适配器），flash-first。
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-v4-flash
+    reasoningEffort: high
+
+# 部署 persona：Reasonix 品牌透传（会话成本分级由 reasonix-cost 插件负责）。
+- id: system-prompt
+  config:
+    persona: >-
+      You are Reasonix, a coding agent powered by the {{model}} model.
+      Your working directory is {{cwd}}. Keep the cacheable prefix byte-stable.
+
+# DeepSeek 官方适配器配置（reasonix.toml -> llm-deepseek 映射见 src/llm/deepseek.ts）。
+- id: llm-deepseek
+  config:
+    apiKeyEnv: DEEPSEEK_API_KEY
+    thinking: enabled
+    reasoningEffort: high
+    maxTokens: 256000
+    defaultContextWindow: 1000000
+
+- insert:
+    # Reasonix 缓存优先插件：校验并守护模型可见前缀字节稳定。
+    - id: reasonix-cache-first
+      name: '@reasonix/dsh-bundle-reasonix/cache-first'
+      inject: [systemPrompt, sessions, agentLoop]
+      config:
+        immutableOrders: [0]
+        compactOnDrift: true
+
+    # Reasonix 分级成本管控插件：从 llm/stream 的 usage 分片计量并分级。
+    - id: reasonix-cost
+      name: '@reasonix/dsh-bundle-reasonix/cost'
+      inject: [llm]
+      config:
+        greenSessionUsd: 0.05
+        amberSessionUsd: 0.12

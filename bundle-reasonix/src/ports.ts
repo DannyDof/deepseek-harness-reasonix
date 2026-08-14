@@ -27,9 +27,21 @@ export interface RepairPipelinePort {
 }
 
 /** 分级成本管控：flash-first，pro 显式可见 */
+export interface TokenMeter {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number;
+}
+
+export interface CostSnapshot {
+  turnCostUsd: number;
+  sessionCostUsd: number;
+  tier: "flash" | "pro";
+}
+
 export interface CostMeterPort {
-  record(sessionId: string, inputTokens: number, outputTokens: number, tier: "flash" | "pro"): void;
-  snapshot(sessionId: string): { turnCostUsd: number; sessionCostUsd: number; tier: "flash" | "pro" };
+  record(sessionId: string, usage: TokenMeter, tier: "flash" | "pro"): void;
+  snapshot(sessionId: string): CostSnapshot;
   /** 是否发生"无提示升级"到 pro */
   didSilentUpgrade(sessionId: string): boolean;
 }

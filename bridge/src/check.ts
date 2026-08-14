@@ -1,5 +1,5 @@
 /**
- * 事件映射与协议自检（M1 验收脚本）。
+ * 桥接层事件映射与协议自检（M1/M2 验收脚本）。
  * 运行：npm run check
  */
 import * as assert from "assert";
@@ -63,26 +63,43 @@ test("cost_updated 属引擎下行，不回传", () => {
   assert.strictEqual(out.length, 0);
 });
 
+test("approval_result 映射为 approval/resolved", () => {
+  const out = mapReasonixToDsh({ type: "approval_result", sessionId: "s1", requestId: "r1", approved: true });
+  assert.strictEqual(out.length, 1);
+  assert.strictEqual(out[0].kind, "approval/resolved");
+});
+
 console.log("== dsh -> Reasonix ==");
-test("agent/request(plan) 映射为 approval_request(kind=plan)", () => {
-  const out = mapDshToReasonix({ kind: "agent/request", sessionId: "s1", requestId: "r1", requestType: "plan", summary: "plan?" });
+test("approval/asked 映射为 approval_request(kind=plan)", () => {
+  const out = mapDshToReasonix({ kind: "approval/asked", sessionId: "s1", requestId: "r1", kindOf: "plan", summary: "plan?" });
   assert.strictEqual(out.length, 1);
   assert.strictEqual(out[0].type, "approval_request");
   assert.strictEqual((out[0] as { kind: string }).kind, "plan");
 });
 
-test("telemetry/cost 映射为 cost_updated 且按阈值分级", () => {
-  const green = mapDshToReasonix({ kind: "telemetry/cost", sessionId: "s1", turnCostUsd: 0.001, sessionCostUsd: 0.01, tier: "flash", inputTokens: 10, outputTokens: 20 })[0];
+test("llm/usage 映射为 cost_updated 且按阈值分级（含缓存折扣）", () => {
+  const green = mapDshToReasonix({ kind: "llm/usage", sessionId: "s1", provider: "deepseek-official", model: "deepseek-v4-flash", inputTokens: 10_000, outputTokens: 5_000 })[0];
   assert.strictEqual((green as { level: string }).level, "green");
-  const amber = mapDshToReasonix({ kind: "telemetry/cost", sessionId: "s1", turnCostUsd: 0.02, sessionCostUsd: 0.08, tier: "pro", inputTokens: 10, outputTokens: 20 })[0];
+
+  const amber = mapDshToReasonix({ kind: "llm/usage", sessionId: "s1", provider: "deepseek-official", model: "deepseek-v4-pro", inputTokens: 20_000, outputTokens: 2_000 })[0];
   assert.strictEqual((amber as { level: string }).level, "amber");
-  const red = mapDshToReasonix({ kind: "telemetry/cost", sessionId: "s1", turnCostUsd: 0.05, sessionCostUsd: 0.3, tier: "pro", inputTokens: 10, outputTokens: 20 })[0];
+
+  const red = mapDshToReasonix({ kind: "llm/usage", sessionId: "s1", provider: "deepseek-official", model: "deepseek-v4-pro", inputTokens: 100_000, outputTokens: 20_000 })[0];
   assert.strictEqual((red as { level: string }).level, "red");
+
+  const cached = mapDshToReasonix({ kind: "llm/usage", sessionId: "s1", provider: "deepseek-official", model: "deepseek-v4-flash", inputTokens: 1_000, cacheReadTokens: 9_000, outputTokens: 1_000 })[0] as { turnCostUsd: number };
+  const uncached = mapDshToReasonix({ kind: "llm/usage", sessionId: "s1", provider: "deepseek-official", model: "deepseek-v4-flash", inputTokens: 10_000, outputTokens: 1_000 })[0] as { turnCostUsd: number };
+  assert.ok(cached.turnCostUsd < uncached.turnCostUsd, "缓存命中应降低计费");
 });
 
-test("agent/pre-step 对前端不可见", () => {
-  const out = mapDshToReasonix({ kind: "agent/pre-step", sessionId: "s1", stepIndex: 1 });
-  assert.strictEqual(out.length, 0);
+test("session/created -> session_opened, turn/start -> turn_started", () => {
+  assert.strictEqual(mapDshToReasonix({ kind: "session/created", sessionId: "s1", title: "t" })[0].type, "session_opened");
+  assert.strictEqual(mapDshToReasonix({ kind: "turn/start", sessionId: "s1", seq: 1 })[0].type, "turn_started");
+});
+
+test("agent/pre-step 与 agent/session-start 对前端不可见", () => {
+  assert.strictEqual(mapDshToReasonix({ kind: "agent/pre-step", sessionId: "s1", turn: 1, step: 1 }).length, 0);
+  assert.strictEqual(mapDshToReasonix({ kind: "agent/session-start", sessionId: "s1", source: "resume" }).length, 0);
 });
 
 console.log("== Bridge 门面 ==");
