@@ -1,0 +1,35 @@
+name: Upstream Contract Check
+
+# "升级看板"（第 12 章）：每日对上游 dsh 最新代码跑契约测试 + 基准，红灯告警不自动合入。
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: npm ci
+
+      - name: Fetch upstream dsh @ HEAD (接缝基准)
+        run: |
+          curl -sL https://codeload.github.com/deepseek-ai/deepseek-harness/tar.gz/refs/heads/master -o /tmp/dsh.tar.gz
+          mkdir -p /tmp/dsh && tar -xzf /tmp/dsh.tar.gz -C /tmp/dsh --strip-components=1
+          echo "fetched dsh master"
+
+      - name: Build
+        run: npm run build
+
+      - name: Contract checks
+        run: npm run check
+
+      - name: Benchmark
+        run: npm run bench --workspace bundle-reasonix

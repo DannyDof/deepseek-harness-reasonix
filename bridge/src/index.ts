@@ -7,6 +7,8 @@ import { Sidecar, SidecarOptions } from "./sidecar";
 export { BackendSwitch, BackendKind, BackendSwitchOptions, BackendState } from "./backend-switch";
 export { exportCheckpoint, importCheckpoint } from "./session/checkpoint";
 export type { ReasonixCheckpoint, ReasonixCheckpointMessage, ReasonixToolCall } from "./session/checkpoint";
+export type { ReasonixEvent } from "./events/reasonix";
+export type { DshEvent } from "./events/dsh";
 
 /**
  * 桥接层门面（reasonix-bridge 对外入口）。

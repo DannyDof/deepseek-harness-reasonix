@@ -1,0 +1,50 @@
+name: Upstream Sync
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # 每 6 小时检测一次上游更新
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: npm ci
+
+      - name: Detect upstream updates
+        id: detect
+        run: |
+          changed=$(node scripts/sync-upstream.mjs --write | tail -n 1 | sed 's/changed=//')
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: npm run build
+
+      - name: Contract checks (契约测试 + 自检)
+        run: npm run check
+
+      - name: Benchmark
+        run: npm run bench --workspace bundle-reasonix
+
+      - name: Open PR on upstream update
+        if: steps.detect.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: 同步上游 dsh / reasonix 版本"
+          title: "chore: 同步上游版本"
+          body: |
+            上游 dsh 或 reasonix 有更新，已更新 upstream/pins.json 并通过契约检查。
+            对应技术方案第 12/13 章"高频更新适配"。
+          branch: upstream/sync
+          delete-branch: true

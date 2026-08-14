@@ -1,0 +1,21 @@
+{
+  "name": "reasonix-launcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "融合应用：Reasonix 风格前端 + dsh 事件管线（HTTP/JSON-RPC 服务 + 演示 web UI）",
+  "license": "MIT",
+  "main": "dist/main.js",
+  "types": "dist/main.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "node dist/check.js",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "reasonix-bridge": "file:../bridge",
+    "@reasonix/dsh-bundle-reasonix": "file:../bundle-reasonix"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

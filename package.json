@@ -6,11 +6,12 @@
   "license": "MIT",
   "workspaces": [
     "bridge",
-    "bundle-reasonix"
+    "bundle-reasonix",
+    "launcher"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "check": "npm run check --workspace bridge && npm run check --workspace bundle-reasonix"
+    "build": "npm run build --workspace bridge && npm run build --workspace bundle-reasonix && npm run build --workspace launcher",
+    "check": "npm run check --workspace bridge && npm run check --workspace bundle-reasonix && npm run check --workspace launcher"
   },
   "engines": {
     "node": ">=16"

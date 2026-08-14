@@ -1,0 +1,50 @@
+name: Build Windows Installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install workspace deps
+        run: npm ci
+
+      - name: Build workspace
+        run: npm run build
+
+      - name: Self-check
+        run: npm run check
+
+      - name: Bundle fused app (esbuild)
+        run: |
+          npm install --save-dev esbuild
+          node scripts/bundle.mjs
+
+      - name: Build desktop installer (NSIS)
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npm run dist
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: reasonix-fused-windows-installer
+          path: apps/desktop/release/*.exe
+          if-no-files-found: error
+
+      - name: Release on tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/desktop/release/*.exe

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reasonix × dsh 融合</title>
+  <style>
+    :root {
+      --primary: #2F4858;
+      --secondary: #5B7B9A;
+      --accent: #8FB3C9;
+      --light: #EEF3F8;
+      --border: #C5D2E0;
+      --dark: #1F2933;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--light); color: var(--dark); }
+    header { background: var(--primary); color: #fff; padding: 14px 20px; display: flex; align-items: baseline; gap: 12px; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+    header span { color: var(--accent); font-size: 13px; }
+    #meta { display: flex; gap: 12px; margin-left: auto; font-size: 12px; }
+    .badge { padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .green { background: #d3ecd7; color: #1a7a2e; }
+    .amber { background: #fcebd2; color: #a2651c; }
+    .red { background: #fbd6d6; color: #b3261e; }
+    main { max-width: 760px; margin: 20px auto; padding: 0 16px; display: flex; flex-direction: column; height: calc(100vh - 90px); }
+    #log { flex: 1; overflow-y: auto; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .msg { margin: 8px 0; }
+    .msg.user { text-align: right; }
+    .msg .bubble { display: inline-block; max-width: 80%; padding: 8px 12px; border-radius: 8px; white-space: pre-wrap; }
+    .msg.user .bubble { background: var(--primary); color: #fff; }
+    .msg.assistant .bubble { background: var(--light); border: 1px solid var(--border); }
+    .meta-line { font-size: 12px; color: var(--secondary); margin: 2px 0; }
+    #composer { display: flex; gap: 8px; margin-top: 12px; }
+    #input { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+    #send { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 0 18px; font-size: 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Reasonix × dsh 融合</h1>
+    <span>DeepSeek Harness 后端 · Reasonix 前端体验</span>
+    <div id="meta">
+      <span id="cost" class="badge green">成本 · 绿</span>
+      <span id="cache" class="badge">前缀 · -</span>
+    </div>
+  </header>
+  <main>
+    <div id="log"></div>
+    <div id="composer">
+      <input id="input" placeholder="输入任务…" />
+      <button id="send">发送</button>
+    </div>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
