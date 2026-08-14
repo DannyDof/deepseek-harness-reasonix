@@ -1,0 +1,22 @@
+{
+  "name": "deepseek-harness-reasonix",
+  "version": "0.1.0",
+  "private": true,
+  "description": "用 DeepSeek Harness 替换 DeepSeek-Reasonix 后端 Agent：桥接层 + dsh bundle 落地仓库",
+  "license": "MIT",
+  "workspaces": [
+    "bridge",
+    "bundle-reasonix"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "check": "node bridge/dist/check.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "devDependencies": {
+    "@types/node": "^16.18.126",
+    "typescript": "^5.3.3"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "dsh-bundle-reasonix",
+  "version": "0.1.0",
+  "private": true,
+  "description": "引擎层：Reasonix 独有能力（缓存优先/修复管线/成本/Coordinator）的 dsh 插件 bundle 骨架",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

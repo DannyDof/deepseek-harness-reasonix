@@ -1,0 +1,16 @@
+{
+  "name": "reasonix-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "桥接层：Reasonix 事件模型 <-> dsh 事件流的双向映射、ACP/JSON-RPC 协议适配、Sidecar 进程编排",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "node dist/check.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
