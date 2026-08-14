@@ -1,0 +1,22 @@
+{
+  "name": "reasonix-integration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "真实 dsh 集成验证（Node 20+）：类型镜像 + 运行时冒烟，验证 bundle-reasonix 插件在真实 cordis/dsh 上工作",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke": "node src/smoke.mjs"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-system-prompt": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-scope": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-attachment": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-invariants": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-brand": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-timeout": "0.1.0-rc.6",
+    "typescript": "^5.3.3"
+  }
+}

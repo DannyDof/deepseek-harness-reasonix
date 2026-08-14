@@ -28,7 +28,7 @@ export type CallId = string & { readonly __brand: "CallId" };
 export interface PromptSection {
   readonly name: string;
   readonly order: number;
-  readonly text: string | ((context: unknown) => string);
+  readonly text: string | ((context: any) => string);
   readonly complete?: boolean;
 }
 
@@ -38,8 +38,14 @@ export interface ToolSchema {
   parameters: Record<string, unknown>;
 }
 
+/** 已装配段（对齐 @deepseek-ai/dsh-system-prompt 的 AssembledSection：仅 name+text，无 order） */
+export interface AssembledSection {
+  name: string;
+  text: string;
+}
+
 export interface PromptAssembly {
-  sections: Array<{ name: string; order: number; text: string }>;
+  sections: AssembledSection[];
   contexts: unknown[];
   tools: ToolSchema[];
   variables: Record<string, string | undefined>;
@@ -85,14 +91,38 @@ export interface SessionStoreLike {
 // ===== llm 接缝 =====
 export type ContentBlockType = "text" | "reasoning" | "tool-call" | "tool-result" | "image";
 
-export interface ContentBlock {
-  type: ContentBlockType;
-  text?: string;
-  id?: CallId;
-  name?: string;
-  arguments?: string;
-  toolCallId?: CallId;
+/** 文本块 */
+export interface TextBlock {
+  type: "text";
+  text: string;
 }
+/** 推理/思考内容块 */
+export interface ReasoningBlock {
+  type: "reasoning";
+  text: string;
+}
+/** 图像块（attachment 引用，本镜像以 unknown 占位） */
+export interface ImageBlock {
+  type: "image";
+  attachment: unknown;
+}
+/** 模型发起的工具调用块 */
+export interface ToolCallBlock {
+  type: "tool-call";
+  id: CallId;
+  name: string;
+  arguments: string;
+}
+/** 工具调用结果块 */
+export interface ToolResultBlock {
+  type: "tool-result";
+  toolCallId: CallId;
+  content: ContentBlock[];
+  isError?: boolean;
+}
+
+/** 内容块可辨识联合（对齐 @deepseek-ai/dsh-llm 的 ContentBlockMap） */
+export type ContentBlock = TextBlock | ReasoningBlock | ImageBlock | ToolCallBlock | ToolResultBlock;
 
 export interface Message {
   id: string;
@@ -108,11 +138,18 @@ export interface TokenUsage {
   reasoningTokens?: number;
 }
 
+export interface LlmFailure {
+  code: string;
+  message: string;
+}
+
+/** 结束原因可辨识联合（对齐 @deepseek-ai/dsh-llm 的 FinishReasonMap） */
 export type FinishReason =
-  | "stop"
-  | "tool-calls"
-  | "max-tokens"
-  | { kind: "aborted" | "error"; failure: { code: string; message: string } };
+  | { kind: "stop" }
+  | { kind: "tool-calls" }
+  | { kind: "max-tokens" }
+  | { kind: "aborted"; failure: LlmFailure }
+  | { kind: "error"; failure: LlmFailure };
 
 export type StreamChunk =
   | { type: "block-start"; index: number; blockType: ContentBlockType }

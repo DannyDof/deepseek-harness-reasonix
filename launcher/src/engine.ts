@@ -49,15 +49,14 @@ export function runTurn(sessionId: string, prompt: string): TurnResult {
 
   const assembly = {
     sections: [
-      { name: "reasonix:cache-prefix", order: 50, text: "cacheable prefix" },
-      { name: "deployment:persona", order: 0, text: "persona" },
+      { name: "deployment:persona", text: "persona" },
+      { name: "reasonix:cache-prefix", text: "cacheable prefix" },
     ],
     contexts: [],
-    tools: [],
+    tools: [{ name: "bash", description: "", parameters: {} }],
     variables: {},
   };
-  const fp = prefixFingerprint(assembly);
-  const prefixStable = fp === prefixFingerprint(assembly);
+  const prefixStable = prefixFingerprint(assembly) === prefixFingerprint(assembly);
 
   return { events, costLevel, prefixStable };
 }

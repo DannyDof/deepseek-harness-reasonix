@@ -29,6 +29,7 @@
 | `bridge/` | 桥接层 | Reasonix/dsh 事件模型、双向映射、ACP/JSON-RPC 协议骨架、Sidecar 进程编排、后端切换/回滚、Session 双向导出 |
 | `bundle-reasonix/` | 引擎层 | dsh profile bundle：`cordis.patch.yml` 清单 + 缓存优先/成本/修复管线/Coordinator 插件 + DeepSeek 适配器配置映射 + 配置兼容(reasonix.toml→profile) + 基准验证 |
 | `launcher/` | 融合应用 | Reasonix 风格 web 前端 + dsh 事件管线（HTTP/JSON-RPC 服务），`npm start` 即开即用 |
+| `integration/` | 集成验证 | 真实 `@deepseek-ai/*` 包上验证 bundle 插件（类型镜像 + 运行时冒烟，Node 20+） |
 | `apps/desktop/` | 安装包 | Tauri 桌面壳（Rust + WebView2，沿用 Reasonix 桌面框架），CI 封装 NSIS Windows 安装包 |
 | `scripts/` | 工具 | 上游同步、esbuild 打包 |
 | `upstream/` | 融合 | 上游版本 pins（dsh / reasonix） |

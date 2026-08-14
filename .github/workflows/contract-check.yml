@@ -33,3 +33,10 @@ jobs:
 
       - name: Benchmark
         run: npm run bench --workspace bundle-reasonix
+
+      - name: Real dsh integration (typecheck + smoke)
+        run: |
+          cd integration
+          npm install --legacy-peer-deps
+          npm run typecheck
+          npm run smoke

@@ -28,30 +28,29 @@ function test(name: string, fn: () => void): void {
 }
 
 console.log("== 缓存优先（前缀指纹） ==");
-test("指纹与段顺序无关，与文本内容相关", () => {
-  const a = { sections: [
-    { name: "b", order: 100, text: "tools" },
-    { name: "a", order: 0, text: "persona" },
-  ], contexts: [], tools: [], variables: {} };
-  const b = { sections: [
-    { name: "a", order: 0, text: "persona" },
-    { name: "b", order: 100, text: "tools" },
-  ], contexts: [], tools: [], variables: {} };
-  const c = { sections: [
-    { name: "a", order: 0, text: "persona-CHANGED" },
-    { name: "b", order: 100, text: "tools" },
-  ], contexts: [], tools: [], variables: {} };
-  assert.strictEqual(prefixFingerprint(a), prefixFingerprint(b));
-  assert.notStrictEqual(prefixFingerprint(a), prefixFingerprint(c));
+test("前缀指纹随段文本/工具名变化，段顺序敏感", () => {
+  const base = {
+    sections: [{ name: "p", text: "persona" }, { name: "c", text: "cache-prefix" }],
+    contexts: [],
+    tools: [{ name: "bash", description: "", parameters: {} }],
+    variables: {},
+  };
+  const same = {
+    sections: [{ name: "p", text: "persona" }, { name: "c", text: "cache-prefix" }],
+    contexts: [],
+    tools: [{ name: "bash", description: "", parameters: {} }],
+    variables: {},
+  };
+  assert.strictEqual(prefixFingerprint(base), prefixFingerprint(same));
+  assert.notStrictEqual(prefixFingerprint(base), prefixFingerprint({ ...base, sections: [{ name: "p", text: "persona-2" }, { name: "c", text: "cache-prefix" }] }));
+  assert.notStrictEqual(prefixFingerprint(base), prefixFingerprint({ ...base, sections: [{ name: "c", text: "cache-prefix" }, { name: "p", text: "persona" }] }));
+  assert.notStrictEqual(prefixFingerprint(base), prefixFingerprint({ ...base, tools: [{ name: "bash2", description: "", parameters: {} }] }));
 });
 
-test("动态内容（order>199）不计入前缀指纹", () => {
-  const stable = { sections: [{ name: "p", order: 0, text: "persona" }], contexts: [], tools: [], variables: {} };
-  const dynamic = { sections: [
-    { name: "p", order: 0, text: "persona" },
-    { name: "d", order: 300, text: "session-specific" },
-  ], contexts: [], tools: [], variables: {} };
-  assert.strictEqual(prefixFingerprint(stable), prefixFingerprint(dynamic));
+test("动态上下文（contexts）不计入前缀指纹", () => {
+  const a = { sections: [{ name: "p", text: "persona" }], contexts: [], tools: [], variables: {} };
+  const b = { sections: [{ name: "p", text: "persona" }], contexts: [{ name: "c", text: "session-specific" }], tools: [], variables: {} };
+  assert.strictEqual(prefixFingerprint(a), prefixFingerprint(b));
 });
 
 console.log("== 成本管控 ==");
@@ -148,7 +147,7 @@ test("flattenArguments 解析字符串化 JSON / 解包单元素数组", () => {
 test("truncateContent 超预算时插入标记", () => {
   const big = { type: "text" as const, text: "x".repeat(10_000) };
   const out = truncateContent([big], { thresholdChars: 8192, headChars: 4096, tailChars: 1024, enabled: true });
-  const joined = out.filter((b) => b.type === "text").map((b) => b.text).join("");
+  const joined = out.filter((b): b is { type: "text"; text: string } => b.type === "text").map((b) => b.text).join("");
   assert.ok(joined.includes("[... tool result middle pruned ...]"));
   assert.ok(Array.from(joined).length < 10_000);
 });

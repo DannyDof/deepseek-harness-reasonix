@@ -7,3 +7,4 @@ dist/
 Thumbs.db
 .idea/
 .vscode/
+integration/package-lock.json
