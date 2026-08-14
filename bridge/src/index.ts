@@ -4,6 +4,10 @@ import { DshEvent } from "./events/dsh";
 import { EventMapper } from "./mapping/event-map";
 import { Sidecar, SidecarOptions } from "./sidecar";
 
+export { BackendSwitch, BackendKind, BackendSwitchOptions, BackendState } from "./backend-switch";
+export { exportCheckpoint, importCheckpoint } from "./session/checkpoint";
+export type { ReasonixCheckpoint, ReasonixCheckpointMessage, ReasonixToolCall } from "./session/checkpoint";
+
 /**
  * 桥接层门面（reasonix-bridge 对外入口）。
  *

@@ -11,6 +11,9 @@ import {
 import { JsonRpcClient, JsonRpcServer, RpcTransport, JsonRpcMessage } from "./protocol/jsonrpc";
 import { AcpClient } from "./protocol/acp";
 import { Bridge } from "./index";
+import { BackendSwitch } from "./backend-switch";
+import { exportCheckpoint, importCheckpoint } from "./session/checkpoint";
+import { DshEvent } from "./events/dsh";
 
 let passed = 0;
 let failed = 0;
@@ -148,6 +151,72 @@ test("ACP client initialize 走 JSON-RPC", async () => {
 console.log("== 阈值常量 ==");
 test("默认阈值存在且有序", () => {
   assert.ok(DEFAULT_COST_THRESHOLDS.greenSessionUsd < DEFAULT_COST_THRESHOLDS.amberSessionUsd);
+});
+
+console.log("== 后端切换与回滚（M5） ==");
+test("BackendSwitch 默认 dsh，可切到 go 回滚", () => {
+  const sw = new BackendSwitch();
+  assert.strictEqual(sw.activeBackend, "dsh");
+  sw.select("go");
+  assert.strictEqual(sw.activeBackend, "go");
+  sw.select("dsh");
+  assert.strictEqual(sw.activeBackend, "dsh");
+});
+
+test("BackendSwitch.freezeRollback 锁定回滚通道", () => {
+  const sw = new BackendSwitch({ rollbackEnabled: false });
+  assert.throws(() => sw.select("go"));
+  sw.freezeRollback();
+  assert.ok(sw.isRollbackFrozen());
+  sw.switchToRollback();
+  assert.strictEqual(sw.activeBackend, "go");
+});
+
+console.log("== Session 双向导出 ==");
+test("exportCheckpoint 汇总 assistant 分片与工具调用", () => {
+  const events: DshEvent[] = [
+    { kind: "session/created", sessionId: "s1", title: "t" },
+    { kind: "turn/start", sessionId: "s1", seq: 1 },
+    { kind: "user/message", sessionId: "s1", seq: 2, content: "hi" },
+    { kind: "assistant/chunk", sessionId: "s1", delta: "Hel" },
+    { kind: "assistant/chunk", sessionId: "s1", delta: "lo" },
+    { kind: "tool/call", sessionId: "s1", callId: "c1", name: "bash", arguments: { cmd: "ls" } },
+    { kind: "assistant/message", sessionId: "s1", content: "Hello" },
+    { kind: "tool/result", sessionId: "s1", callId: "c1", ok: true, output: "ok" },
+    { kind: "turn/end", sessionId: "s1", seq: 9, reason: "completed" },
+  ];
+  const cp = exportCheckpoint(events);
+  assert.strictEqual(cp.sessionId, "s1");
+  assert.strictEqual(cp.title, "t");
+  assert.strictEqual(cp.messages[0].role, "user");
+  const assistant = cp.messages.find((m) => m.role === "assistant");
+  assert.ok(assistant && assistant.role === "assistant");
+  assert.strictEqual((assistant as { toolCalls?: unknown[] }).toolCalls?.length, 1);
+  assert.ok(cp.messages.some((m) => m.role === "tool"));
+});
+
+test("importCheckpoint 逆向还原 dsh 事件（round-trip 保真）", () => {
+  const cp = {
+    format: "reasonix-checkpoint" as const,
+    version: 1 as const,
+    sessionId: "s2",
+    title: "demo",
+    messages: [
+      { role: "user" as const, content: "hello" },
+      { role: "assistant" as const, content: "world", toolCalls: [{ id: "c1", name: "bash", args: { cmd: "ls" } }] },
+      { role: "tool" as const, callId: "c1", output: "file" },
+    ],
+  };
+  const events = importCheckpoint(cp);
+  assert.strictEqual(events[0].kind, "session/created");
+  assert.ok(events.some((e) => e.kind === "user/message" && (e as { content: string }).content === "hello"));
+  assert.ok(events.some((e) => e.kind === "assistant/message" && (e as { content: string }).content === "world"));
+  assert.ok(events.some((e) => e.kind === "tool/call" && (e as { callId: string }).callId === "c1"));
+  assert.ok(events.some((e) => e.kind === "tool/result" && (e as { output: string }).output === "file"));
+  // round-trip
+  const reexported = exportCheckpoint(importCheckpoint(cp));
+  assert.strictEqual(reexported.sessionId, "s2");
+  assert.strictEqual(reexported.messages.length, cp.messages.length);
 });
 
 console.log(`\n结果: ${passed} 通过, ${failed} 失败`);

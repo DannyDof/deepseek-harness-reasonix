@@ -1,6 +1,6 @@
 # 架构说明
 
-对应技术方案书第 3–5、12–13 章。本仓库当前完成 **M1（桥接层）+ M2（引擎层骨架对齐真实 dsh 接缝）+ M3（修复管线 + Coordinator）+ M4（配置兼容 + 基准验证）**。
+对应技术方案书第 3–5、12–13 章。本仓库已完成 **M1–M5**（桥接层 + 引擎层骨架 + 修复管线/Coordinator + 配置兼容/基准验证 + 回滚通道）。
 
 ## 三层结构
 
@@ -12,6 +12,8 @@
   - `protocol/jsonrpc.ts`：JSON-RPC 2.0（无依赖）。
   - `protocol/acp.ts`：ACP 客户端骨架。
   - `sidecar.ts`：dsh Sidecar 进程编排。
+  - `backend-switch.ts`：后端切换（dsh ↔ Go Controller）+ 回滚通道冻结（M5）。
+  - `session/checkpoint.ts`：Session 双向导出（dsh SessionEvent ↔ Reasonix 检查点，M5）。
   - `index.ts`：`Bridge` 门面，两路高频上游之间唯一的缓冲层。
 - **引擎层 `bundle-reasonix/`**（M2 交付，对齐真实接缝）：
   - `cordis.patch.yml`：dsh profile patch（覆盖 dsh-base 行 + 插入插件行）。

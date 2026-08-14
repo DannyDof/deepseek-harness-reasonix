@@ -19,13 +19,13 @@
 | 修复管线 | `agent/pre-step` / `tools/*` | `repair` 插件 |
 | 分级成本管控 | `telemetry/*` | `cost` 插件 |
 
-## 里程碑（本仓库当前为 M4）
+## 里程碑（全部完成）
 
 - M1 桥接层 + 事件映射原型（Sidecar）— 已完成（`bridge/`）
-- M2 dsh-bundle-reasonix：缓存优先 + DeepSeek 适配器 — 已完成（`bundle-reasonix/`，对齐真实接缝：官方 `llm-deepseek` 配置映射 + `systemPrompt.section` 缓存优先 + `llm/stream` 成本计量）
-- M3 修复管线 + Coordinator 接入真实 `tools/*` / `ctx.subagents` — 已完成（scavenge/flatten/truncation/storm + planner/executor 子 Agent）
-- M4 配置兼容（reasonix.toml → profile）+ 基准验证 — 已完成（`src/config/` + `src/benchmark/`，缓存命中率 ≥90%、成本 ≤1.1×、成功率不回退）
-- M5 默认切换 + 回滚通道冻结
+- M2 dsh-bundle-reasonix：缓存优先 + DeepSeek 适配器 — 已完成（`bundle-reasonix/`）
+- M3 修复管线 + Coordinator 接入真实 `tools/*` / `ctx.subagents` — 已完成
+- M4 配置兼容（reasonix.toml → profile）+ 基准验证 — 已完成（`src/config/` + `src/benchmark/`）
+- M5 默认切换 + 回滚通道冻结 — 已完成（`bridge/src/backend-switch.ts` + `bridge/src/session/checkpoint.ts`）
 
 ## 关键机制
 
