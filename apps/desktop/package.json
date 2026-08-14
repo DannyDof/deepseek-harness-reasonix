@@ -2,38 +2,12 @@
   "name": "@reasonix/reasonix-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Reasonix 融合桌面壳：Electron 承载融合 web UI + 内置 dsh 后端",
-  "main": "main.js",
+  "description": "Reasonix 融合桌面壳（Tauri + dsh 后端 sidecar）",
   "scripts": {
-    "dist": "electron-builder --win nsis"
+    "tauri": "tauri",
+    "build": "tauri build"
   },
   "devDependencies": {
-    "electron": "^31.0.0",
-    "electron-builder": "^24.13.3"
-  },
-  "build": {
-    "appId": "ai.reasonix.fused",
-    "productName": "Reasonix",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "main.js",
-      "app/**/*"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
-    }
+    "@tauri-apps/cli": "^2"
   }
 }

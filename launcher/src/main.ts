@@ -10,7 +10,7 @@ import { RpcHandler, RpcError } from "./rpc";
  * - POST /rpc    -> JSON-RPC 2.0
  */
 
-const WEB_DIR = path.join(__dirname, "..", "web");
+const WEB_DIR = process.env.REASONIX_WEB_DIR ?? path.join(__dirname, "..", "web");
 
 function sendJson(res: http.ServerResponse, code: number, body: unknown): void {
   const data = JSON.stringify(body);

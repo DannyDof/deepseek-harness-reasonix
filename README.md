@@ -29,7 +29,7 @@
 | `bridge/` | 桥接层 | Reasonix/dsh 事件模型、双向映射、ACP/JSON-RPC 协议骨架、Sidecar 进程编排、后端切换/回滚、Session 双向导出 |
 | `bundle-reasonix/` | 引擎层 | dsh profile bundle：`cordis.patch.yml` 清单 + 缓存优先/成本/修复管线/Coordinator 插件 + DeepSeek 适配器配置映射 + 配置兼容(reasonix.toml→profile) + 基准验证 |
 | `launcher/` | 融合应用 | Reasonix 风格 web 前端 + dsh 事件管线（HTTP/JSON-RPC 服务），`npm start` 即开即用 |
-| `apps/desktop/` | 安装包 | Electron 桌面壳（CI 封装 NSIS Windows 安装包） |
+| `apps/desktop/` | 安装包 | Tauri 桌面壳（Rust + WebView2，沿用 Reasonix 桌面框架），CI 封装 NSIS Windows 安装包 |
 | `scripts/` | 工具 | 上游同步、esbuild 打包 |
 | `upstream/` | 融合 | 上游版本 pins（dsh / reasonix） |
 | `.github/workflows/` | CI | 上游同步、契约检查、Windows 安装包构建 |
@@ -57,8 +57,9 @@ node launcher/dist/main.js        # 打开 http://127.0.0.1:8787
 
 ## 直接在 GitHub 构建 Windows 安装包
 
-- `.github/workflows/build-windows.yml`：`workflow_dispatch` 或打 `v*` tag 触发，在 `windows-latest` 上构建 NSIS 安装包并上传为 artifact（tag 则自动发布 Release）。
-- 产物：`apps/desktop/release/*.exe`。
+- 桌面端沿用 Reasonix 的 **Tauri（Rust + WebView2）** 框架（低内存占用，替代 Electron）。
+- `.github/workflows/build-windows.yml`：`workflow_dispatch` 或打 `v*` tag 触发，在 `windows-latest` 上安装 Rust 工具链 + 构建 TS workspace + esbuild 打单文件后端 + 下载 `node.exe` 作为 sidecar，最后 `tauri build` 产出 NSIS 安装包并上传为 artifact（tag 则自动发布 Release）。
+- 产物：`apps/desktop/src-tauri/target/release/bundle/nsis/*.exe`。
 
 ## 设计文档
 
