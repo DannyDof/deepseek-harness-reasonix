@@ -2,3 +2,5 @@ node_modules/
 src-tauri/target/
 src-tauri/binaries/
 src-tauri/resources/
+src-tauri/icons/android/
+src-tauri/icons/ios/
