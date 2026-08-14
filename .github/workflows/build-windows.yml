@@ -1,9 +1,13 @@
 name: Build Windows Installer
 
+# 推送到 main 即触发（直接进入 Windows 安装包构建 CI 流程），也支持手动与 tag 发布。
 on:
   workflow_dispatch:
   push:
-    tags: ["v*"]
+    branches:
+      - main
+    tags:
+      - v*
 
 jobs:
   build:
