@@ -2,13 +2,13 @@
   "dsh": {
     "owner": "deepseek-ai",
     "repo": "deepseek-harness",
-    "sha": "47f943859bef60e4160492346772ded9b24f765a",
-    "updatedAt": "2026-08-14T07:54:04.197Z"
+    "sha": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+    "updatedAt": "2026-08-22T18:18:28.618Z"
   },
   "reasonix": {
     "owner": "esengine",
     "repo": "DeepSeek-Reasonix",
-    "sha": "e2986d4d59d9474a1d02843878bd90d41137f5e1",
-    "updatedAt": "2026-08-14T07:54:06.377Z"
+    "sha": "b9cf32f81f8090b25084471dd84539fe421bc88b",
+    "updatedAt": "2026-08-22T18:18:28.904Z"
   }
 }
